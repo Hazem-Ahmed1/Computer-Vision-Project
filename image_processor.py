@@ -8,7 +8,8 @@ import numpy as np
 from PIL import Image, ImageTk
 from ultralytics import YOLO
 from inference import run_inference
-from segmentation import get_threshold_proposals, get_watershed_proposals, get_kmeans_proposals, Yolo
+from segmentation import get_threshold_proposals, get_watershed_proposals, get_kmeans_proposals, Yolo, get_prewitt_proposals
+
 
 class ImageProcessorApp:
     def __init__(self, root):
@@ -23,7 +24,8 @@ class ImageProcessorApp:
         self.style = ttk.Style()
         self.style.configure("Main.TFrame", background="#ffffff")
         self.style.configure("TButton", padding=8, font=("Arial", 10))
-        self.style.configure("TLabel", background="#ffffff", font=("Arial", 10))
+        self.style.configure(
+            "TLabel", background="#ffffff", font=("Arial", 10))
         self.style.configure("Header.TLabel", font=("Arial", 12, "bold"))
         self.style.configure("Accent.TButton",
                              background="#09c",
@@ -39,7 +41,8 @@ class ImageProcessorApp:
         self.header_frame = tk.Frame(self.root, height=60)
         self.header_frame.pack(fill=tk.X, side=tk.TOP)
 
-        self.header_canvas = tk.Canvas(self.header_frame, height=60, highlightthickness=0, bd=0)
+        self.header_canvas = tk.Canvas(
+            self.header_frame, height=60, highlightthickness=0, bd=0)
         self.header_canvas.pack(fill=tk.BOTH, expand=True)
 
         def draw_header_gradient(event=None):
@@ -91,7 +94,8 @@ class ImageProcessorApp:
             width=20
         )
         self.process_options.grid(row=0, column=1, sticky=tk.W)
-        self.process_options.bind("<<ComboboxSelected>>", self.on_process_change)
+        self.process_options.bind(
+            "<<ComboboxSelected>>", self.on_process_change)
 
         self.style.configure("TCombobox", padding=10, font=("Arial", 10))
         self.style.map("TCombobox",
@@ -102,20 +106,26 @@ class ImageProcessorApp:
         self.image_container = ttk.Frame(self.main_frame, style="Main.TFrame")
         self.image_container.pack(anchor="center", pady=10)
 
-        self.original_container = ttk.Frame(self.image_container, style="Main.TFrame")
-        self.original_container.grid(row=0, column=0, padx=15, pady=15, sticky=(tk.W, tk.E))
+        self.original_container = ttk.Frame(
+            self.image_container, style="Main.TFrame")
+        self.original_container.grid(
+            row=0, column=0, padx=15, pady=15, sticky=(tk.W, tk.E))
         ttk.Label(self.original_container,
                   text="Original Image",
                   style="Header.TLabel").grid(row=0, column=0, pady=(0, 8))
-        self.original_label = ttk.Label(self.original_container, style="Main.TLabel")
+        self.original_label = ttk.Label(
+            self.original_container, style="Main.TLabel")
         self.original_label.grid(row=1, column=0)
 
-        self.processed_container = ttk.Frame(self.image_container, style="Main.TFrame")
-        self.processed_container.grid(row=0, column=1, padx=15, pady=15, sticky=(tk.W, tk.E))
+        self.processed_container = ttk.Frame(
+            self.image_container, style="Main.TFrame")
+        self.processed_container.grid(
+            row=0, column=1, padx=15, pady=15, sticky=(tk.W, tk.E))
         ttk.Label(self.processed_container,
                   text="Processed Image",
                   style="Header.TLabel").grid(row=0, column=0, pady=(0, 8))
-        self.processed_label = ttk.Label(self.processed_container, style="Main.TLabel")
+        self.processed_label = ttk.Label(
+            self.processed_container, style="Main.TLabel")
         self.processed_label.grid(row=1, column=0)
 
         self.original_image = None
@@ -169,13 +179,18 @@ class ImageProcessorApp:
         label_encoder = joblib.load('label_encoder.joblib')
 
         if self.process_var.get() == "K-Means Clustring":
-            self.processed_image, detections = self.classify_image(model, get_kmeans_proposals, image, label_encoder)
+            self.processed_image, detections = self.classify_image(
+                model, get_kmeans_proposals, image, label_encoder)
         elif self.process_var.get() == "Prewitt":
-            self.processed_image, detections = self.classify_image(model, get_watershed_proposals, image, label_encoder)
+            self.processed_image, detections = self.classify_image(
+                model, get_prewitt_proposals, image, label_encoder)
+            # self.processed_image, detections = self.classify_image(model, get_watershed_proposals, image, label_encoder)
         elif self.process_var.get() == "Threshhold":
-            self.processed_image, detections = self.classify_image(model, get_threshold_proposals, image, label_encoder)
+            self.processed_image, detections = self.classify_image(
+                model, get_threshold_proposals, image, label_encoder)
         elif self.process_var.get() == "Yolo":
-            self.processed_image, detections = self.classify_image(model, Yolo, image, label_encoder)
+            self.processed_image, detections = self.classify_image(
+                model, Yolo, image, label_encoder)
 
     def display_images(self):
         if self.original_image is None or self.processed_image is None:
@@ -198,8 +213,10 @@ class ImageProcessorApp:
         processed_rgb = cv2.cvtColor(self.processed_image, cv2.COLOR_BGR2RGB)
         processed_resized = cv2.resize(processed_rgb, (new_width, new_height))
 
-        original_photo = ImageTk.PhotoImage(image=Image.fromarray(original_resized))
-        processed_photo = ImageTk.PhotoImage(image=Image.fromarray(processed_resized))
+        original_photo = ImageTk.PhotoImage(
+            image=Image.fromarray(original_resized))
+        processed_photo = ImageTk.PhotoImage(
+            image=Image.fromarray(processed_resized))
 
         self.original_label.configure(image=original_photo)
         self.original_label.image = original_photo
@@ -211,6 +228,7 @@ class ImageProcessorApp:
         if self.original_image is not None:
             self.process_image()
             self.display_images()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
