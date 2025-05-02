@@ -1,46 +1,43 @@
 import cv2
 import numpy as np
-from tensorflow.keras.models import load_model
-IMG_WIDTH = 128  # Resize input images/ROIs to this width
-IMG_HEIGHT = 128 # Resize input images/ROIs to this height
 
-# --- Inference Function ---
-def run_inference(image_path, model, proposal_generator, label_encoder,
-                  confidence_threshold=0.5, nms_iou_threshold=0.3):
+IMG_WIDTH = 128  # Resize input images/ROIs to this width
+IMG_HEIGHT = 128  # Resize input images/ROIs to this height
+
+def run_inference(image, model, proposal_generator, label_encoder, confidence_threshold=0.5, nms_iou_threshold=0.3):
     BATCH_SIZE = 32
     BACKGROUND_CLASS = "background"
-    image = cv2.imread(image_path)
+
+    # Use the input image directly (already a NumPy array)
     if image is None:
-        print(f"Error reading image: {image_path}")
+        print("Error: Input image is None")
         return None, None
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     img_h, img_w = image.shape[:2]
 
     # 1. Generate Region Proposals
-    proposals = proposal_generator(image) # e.g., get_contour_proposals
+    proposals = proposal_generator(image)  # Pass image array to proposal_generator
     print(f"Generated {len(proposals)} proposals.")
     if not proposals:
         print("No proposals generated.")
-        return image_rgb, [] # Return original image and no detections
-
+        return image_rgb, []  # Return original image and no detections
 
     # 2. Prepare ROIs for CNN input
     roi_batch = []
-    valid_proposal_boxes = [] # Store the original coords of proposals we process
+    valid_proposal_boxes = []  # Store the original coords of proposals we process
     for prop_box in proposals:
         xmin, ymin, xmax, ymax = prop_box
         roi = image[ymin:ymax, xmin:xmax]
-        if roi.size == 0: continue
+        if roi.size == 0:
+            continue
 
         try:
             resized_roi = cv2.resize(roi, (IMG_WIDTH, IMG_HEIGHT))
             normalized_roi = resized_roi.astype("float32") / 255.0
             roi_batch.append(normalized_roi)
             valid_proposal_boxes.append(prop_box)
-
         except Exception as e:
-             print(f"Error processing ROI {prop_box}: {e}")
-
+            print(f"Error processing ROI {prop_box}: {e}")
 
     if not roi_batch:
         print("No valid ROIs to process after resizing.")
@@ -64,7 +61,7 @@ def run_inference(image_path, model, proposal_generator, label_encoder,
 
         # Keep only non-background predictions above threshold
         if predicted_class_id != bg_class_id and confidence >= confidence_threshold:
-            original_box = valid_proposal_boxes[i] # Get the original proposal coords
+            original_box = valid_proposal_boxes[i]  # Get the original proposal coords
             detected_boxes.append(original_box)
             detected_scores.append(confidence)
             detected_classes.append(predicted_class_id)
@@ -86,13 +83,13 @@ def run_inference(image_path, model, proposal_generator, label_encoder,
 
     # 5. Prepare Final Detections
     final_detections = []
-    final_image = image_rgb.copy() # Image to draw on
+    final_image = image_rgb.copy()  # Image to draw on
 
     for idx in keep_indices:
         xmin, ymin, xmax, ymax = detected_boxes[idx]
         score = detected_scores[idx]
         class_id = detected_classes[idx]
-        label_name = label_encoder.transform([BACKGROUND_CLASS])[0]
+        label_name = label_encoder.inverse_transform([class_id])[0]  # Fixed to get correct label
 
         final_detections.append({
             'box': [xmin, ymin, xmax, ymax],
@@ -101,7 +98,7 @@ def run_inference(image_path, model, proposal_generator, label_encoder,
         })
 
         # Draw bounding box and label on the image
-        cv2.rectangle(final_image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2) # Blue box
+        cv2.rectangle(final_image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)  # Blue box
         text = f"{label_name}: {score:.2f}"
         cv2.putText(final_image, text, (xmin, ymin - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -109,16 +106,6 @@ def run_inference(image_path, model, proposal_generator, label_encoder,
     return final_image, final_detections
 
 def non_max_suppression(boxes, scores, classes, iou_threshold):
-    """
-    Applies Non-Maximum Suppression.
-    Args:
-        boxes (np.array): Array of boxes, shape (N, 4), format [xmin, ymin, xmax, ymax].
-        scores (np.array): Array of scores, shape (N,).
-        classes (np.array): Array of class IDs, shape (N,).
-        iou_threshold (float): IoU threshold for suppression.
-    Returns:
-        list: Indices of boxes to keep.
-    """
     if len(boxes) == 0:
         return []
 
@@ -127,7 +114,6 @@ def non_max_suppression(boxes, scores, classes, iou_threshold):
 
     keep = []
     while len(indices) > 0:
-        # Pick the top box
         current_idx = indices[0]
         keep.append(current_idx)
 
@@ -137,7 +123,8 @@ def non_max_suppression(boxes, scores, classes, iou_threshold):
 
         # Get coordinates of the remaining boxes
         remaining_indices = indices[1:]
-        if len(remaining_indices) == 0: break # Exit if no boxes left
+        if len(remaining_indices) == 0:
+            break
 
         x1_rem = boxes[remaining_indices, 0]
         y1_rem = boxes[remaining_indices, 1]

@@ -6,6 +6,7 @@ from tkinter import filedialog, ttk
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
+from ultralytics import YOLO
 from inference import run_inference
 from segmentation import get_threshold_proposals, get_watershed_proposals, get_kmeans_proposals, Yolo
 
@@ -15,6 +16,9 @@ class ImageProcessorApp:
         self.root.title("Image Processor")
         self.root.minsize(800, 400)
         self.root.configure(bg="#ffffff")
+
+        # Load YOLO model once during initialization
+        self.yolo_model = YOLO('yolov8m-seg.pt')
 
         self.style = ttk.Style()
         self.style.configure("Main.TFrame", background="#ffffff")
@@ -78,11 +82,11 @@ class ImageProcessorApp:
         self.style.map("Accent.TButton", background=[], foreground=[])
         self.select_button.configure(cursor="hand2")
 
-        self.process_var = tk.StringVar(value="Edge Detection")
+        self.process_var = tk.StringVar(value="K-Means Clustring")
         self.process_options = ttk.Combobox(
             self.control_panel,
             textvariable=self.process_var,
-            values=["K-Means Clustring", "Prewitt", "Yolo","Threshhold"],
+            values=["K-Means Clustring", "Prewitt", "Yolo", "Threshhold"],
             state="readonly",
             width=20
         )
@@ -116,8 +120,7 @@ class ImageProcessorApp:
 
         self.original_image = None
         self.processed_image = None
-
-        # self.root.bind("<Configure>", self.on_resize)
+        self.image_path = None
 
     def select_image(self):
         file_path = filedialog.askopenfilename(
@@ -125,50 +128,64 @@ class ImageProcessorApp:
         if file_path:
             self.image_path = file_path
             self.original_image = cv2.imread(file_path)
+            if self.original_image is None:
+                print(f"Error reading image: {file_path}")
+                return
             self.process_image()
             self.display_images()
 
-    def classify_image(self, model, Proposal, image,label_encoder ,confidence_threshold=0.4,nms_iou_threshold=0.3):
-        final_image, detections = run_inference(
-             image,
-             model,
-             Proposal, 
-             label_encoder,
-             confidence_threshold,
-             nms_iou_threshold)
+    def classify_image(self, model, Proposal, image, label_encoder, confidence_threshold=0.4, nms_iou_threshold=0.3):
+        # Load the image from the file path
+        image_data = cv2.imread(image)
+        if image_data is None:
+            print(f"Error reading image: {image}")
+            return None, None
+        if Proposal == Yolo:
+            # Pass the YOLO model for Yolo proposal generator
+            final_image, detections = run_inference(
+                image_data,
+                model,
+                lambda img: Yolo(img, self.yolo_model),
+                label_encoder,
+                confidence_threshold,
+                nms_iou_threshold
+            )
+        else:
+            final_image, detections = run_inference(
+                image_data,
+                model,
+                Proposal,
+                label_encoder,
+                confidence_threshold,
+                nms_iou_threshold
+            )
         return final_image, detections
 
-
     def process_image(self):
-        if self.original_image is None:
+        if self.original_image is None or self.image_path is None:
             return
         image = self.image_path
         model = tf.keras.models.load_model('fruit_detector_cnn.keras')
         label_encoder = joblib.load('label_encoder.joblib')
-        
 
         if self.process_var.get() == "K-Means Clustring":
             self.processed_image, detections = self.classify_image(model, get_kmeans_proposals, image, label_encoder)
-
         elif self.process_var.get() == "Prewitt":
             self.processed_image, detections = self.classify_image(model, get_watershed_proposals, image, label_encoder)
-
         elif self.process_var.get() == "Threshhold":
             self.processed_image, detections = self.classify_image(model, get_threshold_proposals, image, label_encoder)
-        
         elif self.process_var.get() == "Yolo":
             self.processed_image, detections = self.classify_image(model, Yolo, image, label_encoder)
 
-
     def display_images(self):
-        if self.original_image is None:
+        if self.original_image is None or self.processed_image is None:
+            print("Original or processed image is missing.")
             return
 
         window_width = self.root.winfo_width()
         window_height = self.root.winfo_height()
 
         original_rgb = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2RGB)
-
         max_size = min(window_width // 2 - 80, window_height - 200)
         max_size = max(200, min(max_size, 800))
 
@@ -180,7 +197,6 @@ class ImageProcessorApp:
         original_resized = cv2.resize(original_rgb, (new_width, new_height))
         processed_rgb = cv2.cvtColor(self.processed_image, cv2.COLOR_BGR2RGB)
         processed_resized = cv2.resize(processed_rgb, (new_width, new_height))
-
 
         original_photo = ImageTk.PhotoImage(image=Image.fromarray(original_resized))
         processed_photo = ImageTk.PhotoImage(image=Image.fromarray(processed_resized))
@@ -194,11 +210,7 @@ class ImageProcessorApp:
     def on_process_change(self, event):
         if self.original_image is not None:
             self.process_image()
-            # self.display_images()
-
-    # def on_resize(self, event):
-    #     if self.original_image is not None:
-    #         self.display_images()
+            self.display_images()
 
 if __name__ == "__main__":
     root = tk.Tk()
