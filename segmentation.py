@@ -5,7 +5,7 @@ from ultralytics import YOLO
 # Contour-based proposal generation
 
 
-def filter_proposals(proposals_in, img_w, img_h, min_area=500, max_area_ratio=0.8, min_aspect_ratio=0.2, max_aspect_ratio=5.0):
+def filter_proposals(proposals_in, img_w, img_h, min_area=10000, max_area_ratio=0.8, min_aspect_ratio=0.2, max_aspect_ratio=5.0):
     filtered_proposals = []
     max_area = img_h * img_w * max_area_ratio
     for x, y, w, h in proposals_in:
