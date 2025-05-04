@@ -4,11 +4,10 @@ import numpy as np
 IMG_WIDTH = 128  # Resize input images/ROIs to this width
 IMG_HEIGHT = 128  # Resize input images/ROIs to this height
 
-def run_inference(image, model, proposal_generator, label_encoder, confidence_threshold=0.5, nms_iou_threshold=0.3):
+def run_inference(image, model, proposal_generator, label_encoder, confidence_threshold=0.3, nms_iou_threshold=0.5):
     BATCH_SIZE = 32
     BACKGROUND_CLASS = "background"
 
-    # Use the input image directly (already a NumPy array)
     if image is None:
         print("Error: Input image is None")
         return None, None
@@ -16,15 +15,15 @@ def run_inference(image, model, proposal_generator, label_encoder, confidence_th
     img_h, img_w = image.shape[:2]
 
     # 1. Generate Region Proposals
-    proposals = proposal_generator(image)  # Pass image array to proposal_generator
+    proposals = proposal_generator(image)
     print(f"Generated {len(proposals)} proposals.")
     if not proposals:
         print("No proposals generated.")
-        return image_rgb, []  # Return original image and no detections
+        return image_rgb, []
 
     # 2. Prepare ROIs for CNN input
     roi_batch = []
-    valid_proposal_boxes = []  # Store the original coords of proposals we process
+    valid_proposal_boxes = []
     for prop_box in proposals:
         xmin, ymin, xmax, ymax = prop_box
         roi = image[ymin:ymax, xmin:xmax]
@@ -61,7 +60,7 @@ def run_inference(image, model, proposal_generator, label_encoder, confidence_th
 
         # Keep only non-background predictions above threshold
         if predicted_class_id != bg_class_id and confidence >= confidence_threshold:
-            original_box = valid_proposal_boxes[i]  # Get the original proposal coords
+            original_box = valid_proposal_boxes[i]
             detected_boxes.append(original_box)
             detected_scores.append(confidence)
             detected_classes.append(predicted_class_id)
@@ -72,7 +71,6 @@ def run_inference(image, model, proposal_generator, label_encoder, confidence_th
         print("No detections above confidence threshold.")
         return image_rgb, []
 
-    # Apply NMS
     keep_indices = non_max_suppression(
         np.array(detected_boxes),
         np.array(detected_scores),
@@ -83,7 +81,7 @@ def run_inference(image, model, proposal_generator, label_encoder, confidence_th
 
     # 5. Prepare Final Detections
     final_detections = []
-    final_image = image_rgb.copy()  # Image to draw on
+    final_image = image_rgb.copy()
 
     for idx in keep_indices:
         xmin, ymin, xmax, ymax = detected_boxes[idx]
@@ -98,7 +96,7 @@ def run_inference(image, model, proposal_generator, label_encoder, confidence_th
         })
 
         # Draw bounding box and label on the image
-        cv2.rectangle(final_image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)  # Blue box
+        cv2.rectangle(final_image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
         text = f"{label_name}: {score:.2f}"
         cv2.putText(final_image, text, (xmin, ymin - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -109,7 +107,6 @@ def non_max_suppression(boxes, scores, classes, iou_threshold):
     if len(boxes) == 0:
         return []
 
-    # Sort by score in descending order
     indices = np.argsort(scores)[::-1]
 
     keep = []

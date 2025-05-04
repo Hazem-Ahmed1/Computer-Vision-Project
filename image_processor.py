@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image, ImageTk
 from ultralytics import YOLO
 from inference import run_inference
-from segmentation import get_threshold_proposals, get_watershed_proposals, get_kmeans_proposals, Yolo, get_prewitt_proposals
+from segmentation import get_threshold_proposals, get_kmeans_proposals, Yolo
 
 
 class ImageProcessorApp:
@@ -18,7 +18,6 @@ class ImageProcessorApp:
         self.root.minsize(800, 400)
         self.root.configure(bg="#ffffff")
 
-        # Load YOLO model once during initialization
         self.yolo_model = YOLO('yolov8m-seg.pt')
 
         self.style = ttk.Style()
@@ -89,7 +88,7 @@ class ImageProcessorApp:
         self.process_options = ttk.Combobox(
             self.control_panel,
             textvariable=self.process_var,
-            values=["K-Means Clustring", "Prewitt", "Yolo", "Threshhold"],
+            values=["K-Means Clustring", "Yolo", "Threshhold"],
             state="readonly",
             width=20
         )
@@ -145,13 +144,11 @@ class ImageProcessorApp:
             self.display_images()
 
     def classify_image(self, model, Proposal, image, label_encoder, confidence_threshold=0.4, nms_iou_threshold=0.3):
-        # Load the image from the file path
         image_data = cv2.imread(image)
         if image_data is None:
             print(f"Error reading image: {image}")
             return None, None
         if Proposal == Yolo:
-            # Pass the YOLO model for Yolo proposal generator
             final_image, detections = run_inference(
                 image_data,
                 model,
@@ -181,10 +178,7 @@ class ImageProcessorApp:
         if self.process_var.get() == "K-Means Clustring":
             self.processed_image, detections = self.classify_image(
                 model, get_kmeans_proposals, image, label_encoder)
-        elif self.process_var.get() == "Prewitt":
-            self.processed_image, detections = self.classify_image(
-                model, get_prewitt_proposals, image, label_encoder)
-            # self.processed_image, detections = self.classify_image(model, get_watershed_proposals, image, label_encoder)
+
         elif self.process_var.get() == "Threshhold":
             self.processed_image, detections = self.classify_image(
                 model, get_threshold_proposals, image, label_encoder)
