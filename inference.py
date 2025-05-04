@@ -5,9 +5,6 @@ import math # Import math for calculations like sqrt if needed, or just use basi
 IMG_WIDTH = 128  # Resize input images/ROIs to this width
 IMG_HEIGHT = 128  # Resize input images/ROIs to this height
 
-# Assume non_max_suppression is defined elsewhere as provided in the original code
-# def non_max_suppression(boxes, scores, classes, iou_threshold):
-#    ... (implementation from your original code) ...
 
 def run_inference(image, model, proposal_generator, label_encoder, confidence_threshold=0.3, nms_iou_threshold=0.5):
 
@@ -215,10 +212,6 @@ def non_max_suppression(boxes, scores, classes, iou_threshold):
         overlap_mask = (iou > iou_threshold)
         standard_nms_remove_mask = same_class_mask & overlap_mask
 
-
-        # --- New Rule: Check for full containment ---
-        # Check if remaining boxes are fully contained within the current box
-        # Condition: x1_rem >= x1_current AND y1_rem >= y1_current AND x2_rem <= x2_current AND y2_rem <= y2_current
         is_contained_mask = (x1_rem >= x1_current) & \
                             (y1_rem >= y1_current) & \
                             (x2_rem <= x2_current) & \
