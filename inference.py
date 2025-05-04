@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import math # Import math for calculations like sqrt if needed, or just use basic arithmetic
+import math 
 
 IMG_WIDTH = 128  # Resize input images/ROIs to this width
 IMG_HEIGHT = 128  # Resize input images/ROIs to this height

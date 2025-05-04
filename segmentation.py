@@ -28,15 +28,11 @@ def get_threshold_proposals(image, min_area=500, max_area_ratio=0.8, min_aspect_
     proposals_raw = []
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (7, 7), 0)
-    ret, thresh = cv2.threshold(
-        blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    ret, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     kernel = np.ones((5, 5), np.uint8)
-    thresh_cleaned = cv2.morphologyEx(
-        thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
-    thresh_cleaned = cv2.morphologyEx(
-        thresh_cleaned, cv2.MORPH_OPEN, kernel, iterations=1)
-    contours, _ = cv2.findContours(
-        thresh_cleaned.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    thresh_cleaned = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
+    thresh_cleaned = cv2.morphologyEx(thresh_cleaned, cv2.MORPH_OPEN, kernel, iterations=1)
+    contours, _ = cv2.findContours(thresh_cleaned.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         proposals_raw.append((x, y, w, h))
@@ -57,8 +53,7 @@ def get_kmeans_proposals(image, n_clusters=3, min_area=10000, max_area_ratio=0.8
 
     # Apply K-Means clustering
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
-    _, labels, centers = cv2.kmeans(
-        pixel_values, n_clusters, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    _, labels, centers = cv2.kmeans(pixel_values, n_clusters, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
     centers = np.uint8(centers)
     segmented_image_flat = centers[labels.flatten()]
     segmented_image = segmented_image_flat.reshape(image.shape)
@@ -67,12 +62,9 @@ def get_kmeans_proposals(image, n_clusters=3, min_area=10000, max_area_ratio=0.8
     for i in range(n_clusters):
         mask = cv2.inRange(segmented_image, centers[i], centers[i])
         kernel = np.ones((3, 3), np.uint8)  # Smaller kernel for finer details
-        mask_cleaned = cv2.morphologyEx(
-            mask, cv2.MORPH_CLOSE, kernel, iterations=2)
-        mask_cleaned = cv2.morphologyEx(
-            mask_cleaned, cv2.MORPH_OPEN, kernel, iterations=1)
-        contours, _ = cv2.findContours(
-            mask_cleaned.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+        mask_cleaned = cv2.morphologyEx(mask_cleaned, cv2.MORPH_OPEN, kernel, iterations=1)
+        contours, _ = cv2.findContours(mask_cleaned.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         print(f"Cluster {i}: Found {len(contours)} contours")
 
         for contour in contours:
